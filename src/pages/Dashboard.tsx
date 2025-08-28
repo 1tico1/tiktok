@@ -117,6 +117,7 @@ export default function Dashboard() {
                 tickFormatter={(value) => new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
               />
               <YAxis />
+              <YAxis yAxisId="right" orientation="right" />
               <Tooltip 
                 labelFormatter={(value) => new Date(value).toLocaleDateString('pt-BR')}
                 formatter={(value: any, name: any) => {
