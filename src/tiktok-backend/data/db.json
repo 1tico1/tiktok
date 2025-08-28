@@ -1,0 +1,63 @@
+{
+  "candidates": [
+    {
+      "id": "yt_humor_1756423570325",
+      "source": "YouTube",
+      "url": "https://youtu.be/xxxx",
+      "title": "TOP 1 humor — Corte do dia",
+      "channel": "HUMOR Cast",
+      "category": "humor",
+      "views": 648542,
+      "duration_sec": 3600,
+      "isTop1InCategory": true,
+      "transcriptReady": false
+    }
+  ],
+  "cuts": [
+    {
+      "id": "cut_frrtjv",
+      "candidateId": "yt_humor_1756423570325",
+      "start": 62.4,
+      "end": 88.9,
+      "score": 0.87,
+      "reason": "frase de impacto + risos",
+      "status": "proposed"
+    },
+    {
+      "id": "cut_bco83o",
+      "candidateId": "yt_humor_1756423570325",
+      "start": 121,
+      "end": 149,
+      "score": 0.79,
+      "reason": "reação inesperada",
+      "status": "proposed"
+    }
+  ],
+  "renderedClips": [
+    {
+      "id": "rc_8o5mgv",
+      "cutId": "cut_frrtjv",
+      "template": "Clean",
+      "titleInVideo": "Momento mais engra�ado!",
+      "subtitled": true,
+      "mp4Url": "https://files.local/cut_frrtjv.mp4",
+      "caption": "Momento mais engra�ado! — Você concorda? 👀",
+      "hashtags": [
+        "#tiktokbr",
+        "#viral",
+        "#brasil",
+        "#podcast",
+        "#entretenimento"
+      ],
+      "variant": "A"
+    }
+  ],
+  "posts": [
+    {
+      "id": "post_1756423595741",
+      "renderedClipId": "rc_8o5mgv",
+      "when": "2024-03-01T10:00:00-03:00",
+      "status": "scheduled"
+    }
+  ]
+}
