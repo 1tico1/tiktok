@@ -4,14 +4,18 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { ingestTop1, suggestCuts, renderClip, publishTikTok, metricsDaily } from './routes.js';
+import { ingestTop1 } from './handlers/ingest.js';
+import { cutsSuggest } from './handlers/cuts.js';
+import { renderClip } from './handlers/render.js';
+import { publishTikTok } from './handlers/publish.js';
+import { metricsDaily } from './handlers/metrics.js';
 
 // Configuração do __dirname no ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Carrega variáveis de ambiente
-dotenv.config({ path: join(__dirname, '../../tiktok-backend.env') });
+dotenv.config({ path: join(__dirname, '../.env') });
 
 const app = express();
 
@@ -40,7 +44,7 @@ export function requireAuth(req, res, next) {
 // Rotas
 app.get('/health', (req, res) => res.json({ ok: true }));
 app.post('/ingest/youtube/top1', requireAuth, ingestTop1);
-app.post('/cuts/suggest', requireAuth, suggestCuts);
+app.post('/cuts/suggest', requireAuth, cutsSuggest);
 app.post('/render', requireAuth, renderClip);
 app.post('/tiktok/publish', requireAuth, publishTikTok);
 app.get('/metrics/daily', requireAuth, metricsDaily);

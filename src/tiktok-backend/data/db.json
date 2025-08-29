@@ -31,6 +31,24 @@
       "score": 0.79,
       "reason": "reação inesperada",
       "status": "proposed"
+    },
+    {
+      "id": "cut_lpjmve",
+      "candidateId": "yt_test123",
+      "start": 62,
+      "end": 88,
+      "score": 0.75,
+      "reason": "frase de impacto + risos",
+      "status": "proposed"
+    },
+    {
+      "id": "cut_y8mb8l",
+      "candidateId": "yt_test123",
+      "start": 120,
+      "end": 150,
+      "score": 0.76,
+      "reason": "frase de impacto + risos",
+      "status": "proposed"
     }
   ],
   "renderedClips": [
@@ -42,6 +60,23 @@
       "subtitled": true,
       "mp4Url": "https://files.local/cut_frrtjv.mp4",
       "caption": "Momento mais engra�ado! — Você concorda? 👀",
+      "hashtags": [
+        "#tiktokbr",
+        "#viral",
+        "#brasil",
+        "#podcast",
+        "#entretenimento"
+      ],
+      "variant": "A"
+    },
+    {
+      "id": "rc_k2gy6v",
+      "cutId": "cut_test123",
+      "template": "default",
+      "titleInVideo": "Teste Curto",
+      "subtitled": true,
+      "mp4Url": "https://files.local/cut_test123.mp4",
+      "caption": "Teste Curto — Você concorda? 👀",
       "hashtags": [
         "#tiktokbr",
         "#viral",

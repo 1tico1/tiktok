@@ -1,168 +1,84 @@
 import { toast } from "@/hooks/use-toast";
 import { useAppStore } from "./store";
-import type { Candidate, CutProposal, RenderedClip, PostJob, Config } from "./store";
+import type { Config } from "./store";
+import { api, type Candidate, type CutProposal, type RenderedClip, type PostJob, type KPI } from "@/lib/api";
+import type { AppState } from "@/lib/types";
 
-export const runDailyCycle = () => {
+export const runDailyCycle = async () => {
   const store = useAppStore.getState();
-  const { config, addLog, setCandidates, setCutProposals, addRenderedClip, addPostJob } = store;
+  const { config, addLog, setCandidates } = store;
 
   addLog("info", "coleta", "Iniciando ciclo diário", { timestamp: new Date().toISOString() });
 
-  // Generate candidates based on active sources and categories
-  const mockCandidates: Candidate[] = [];
-  const activeCategories = config.categories;
-  
-  let candidateCounter = 1;
-  
-  // Create exactly one top 1 per category
-  activeCategories.forEach(category => {
-    const sources = [];
-    if (config.sources.youtube) sources.push("YouTube");
-    if (config.sources.podcasts) sources.push("Podcasts");
-    if (config.sources.twitch) sources.push("Twitch");
+  try {
+    const cats = config.categories;
+    let all: Candidate[] = [];
     
-    if (sources.length === 0) return;
-    
-    const randomSource = sources[Math.floor(Math.random() * sources.length)] as any;
-    
-    mockCandidates.push({
-      id: `yt_${candidateCounter}`,
-      source: randomSource,
-      url: `https://youtu.be/mock${candidateCounter}`,
-      title: `Top ${category} do momento - Episódio ${candidateCounter}`,
-      channel: `Canal ${category} BR`,
-      category,
-      views: Math.floor(Math.random() * 1000000) + 100000,
-      duration_sec: Math.floor(Math.random() * 3600) + 600,
-      isTop1InCategory: true,
-      transcriptReady: Math.random() > 0.3
-    });
-    candidateCounter++;
-  });
-
-  // Add additional candidates (not top 1)
-  const remainingSlots = config.limits.candidatesPerDay - activeCategories.length;
-  for (let i = 0; i < Math.max(0, remainingSlots); i++) {
-    const randomCategory = activeCategories[Math.floor(Math.random() * activeCategories.length)];
-    const sources = [];
-    if (config.sources.youtube) sources.push("YouTube");
-    if (config.sources.podcasts) sources.push("Podcasts");
-    if (config.sources.twitch) sources.push("Twitch");
-    
-    if (sources.length === 0) continue;
-    
-    const randomSource = sources[Math.floor(Math.random() * sources.length)] as any;
-    
-    mockCandidates.push({
-      id: `yt_${candidateCounter}`,
-      source: randomSource,
-      url: `https://youtu.be/mock${candidateCounter}`,
-      title: `Conteúdo ${randomCategory} interessante ${candidateCounter}`,
-      channel: `Canal Alternativo ${candidateCounter}`,
-      category: randomCategory,
-      views: Math.floor(Math.random() * 500000) + 10000,
-      duration_sec: Math.floor(Math.random() * 3600) + 300,
-      isTop1InCategory: false,
-      transcriptReady: Math.random() > 0.5
-    });
-    candidateCounter++;
-  }
-
-  setCandidates(mockCandidates);
-
-  // Generate some cut proposals for 2 candidates
-  if (mockCandidates.length >= 2) {
-    const proposals: CutProposal[] = [];
-    for (let i = 0; i < 2; i++) {
-      const candidate = mockCandidates[i];
-      const numCuts = Math.min(config.limits.maxCutsPerVideo, Math.floor(Math.random() * 2) + 1);
-      
-      for (let j = 0; j < numCuts; j++) {
-        const start = Math.floor(Math.random() * candidate.duration_sec * 0.7);
-        const duration = Math.floor(Math.random() * (config.limits.clipMaxSec - config.limits.clipMinSec)) + config.limits.clipMinSec;
-        
-        proposals.push({
-          id: `cut_${i}_${j}`,
-          candidateId: candidate.id,
-          start,
-          end: start + duration,
-          score: Math.random() * 0.3 + 0.7, // 0.7 to 1.0
-          reason: ["frase de impacto + risos", "momento viral", "reação épica", "insight interessante"][Math.floor(Math.random() * 4)],
-          status: "proposed"
-        });
+    for (const c of cats) {
+      try {
+        const arr = await api.ingestTop1(c);
+        all = all.concat(arr);
+      } catch (apiError) {
+        console.warn(`[runDailyCycle] API falhou para categoria ${c}, usando fallback:`, apiError);
+        // Fallback: gerar mock para essa categoria
+        const mockCandidate: Candidate = {
+          id: `mock_${c}_${Date.now()}`,
+          source: "YouTube",
+          url: "https://youtu.be/mock",
+          title: `TOP 1 ${c} — Corte do dia (mock)`,
+          channel: `${c.toUpperCase()} Cast`,
+          category: c,
+          views: 500000 + Math.floor(Math.random()*600000),
+          duration_sec: 3600,
+          isTop1InCategory: true,
+          transcriptReady: false
+        };
+        all.push(mockCandidate);
       }
     }
-    setCutProposals(proposals);
+    
+    setCandidates(all);
+    addLog("info", "coleta", "Ingest concluído (YouTube)", { total: all.length, cats });
+
+    toast({
+      title: "Ciclo Executado",
+      description: `${all.length} candidatos coletados com sucesso!`
+    });
+  } catch (error) {
+    addLog("error", "coleta", "Erro no ciclo diário", { error });
+    
+    toast({
+      title: "Erro no Ciclo",
+      description: error instanceof Error ? error.message : "Erro desconhecido",
+      variant: "destructive"
+    });
   }
-
-  // Create one example rendered clip
-  if (mockCandidates.length > 0) {
-    const exampleClip: RenderedClip = {
-      id: "rc_example",
-      cutId: "cut_0_0",
-      template: config.defaultTemplate,
-      titleInVideo: "Ninguém esperava!",
-      subtitled: true,
-      mp4Url: "https://files.local/rc_example.mp4",
-      caption: "Você concorda? 👀",
-      hashtags: ["#entretenimento", "#podcast", "#viral", "#tiktokbr", "#brasil"],
-      variant: "A"
-    };
-    addRenderedClip(exampleClip);
-
-    // Add a scheduled post
-    const scheduledPost: PostJob = {
-      id: "post_example",
-      renderedClipId: "rc_example",
-      when: "2025-08-29T09:30:00-03:00",
-      status: "scheduled"
-    };
-    addPostJob(scheduledPost);
-  }
-
-  addLog("info", "coleta", "Ciclo diário concluído", { 
-    candidatesCreated: mockCandidates.length,
-    cutProposalsCreated: store.cutProposals.length 
-  });
-
-  toast({
-    title: "Ciclo Executado",
-    description: `${mockCandidates.length} candidatos coletados com sucesso!`
-  });
 };
 
-export const generateCuts = (candidateId: string) => {
+export const generateCuts = async (candidateId: string) => {
   const store = useAppStore.getState();
-  const { candidates, config, addCutProposal, addLog } = store;
+  const { candidates, setCutProposals, addLog } = store;
   
-  const candidate = candidates.find(c => c.id === candidateId);
+  const candidate: Candidate | undefined = candidates.find((c: Candidate) => c.id === candidateId);
   if (!candidate) return;
 
-  const numCuts = Math.min(config.limits.maxCutsPerVideo, Math.floor(Math.random() * 3) + 1);
-  
-  for (let i = 0; i < numCuts; i++) {
-    const start = Math.floor(Math.random() * candidate.duration_sec * 0.8);
-    const duration = Math.floor(Math.random() * (config.limits.clipMaxSec - config.limits.clipMinSec)) + config.limits.clipMinSec;
-    
-    const proposal: CutProposal = {
-      id: `cut_${candidateId}_${Date.now()}_${i}`,
-      candidateId,
-      start,
-      end: start + duration,
-      score: Math.random() * 0.4 + 0.6,
-      reason: ["frase de impacto + risos", "momento viral", "reação épica", "insight interessante", "clímax da história"][Math.floor(Math.random() * 5)],
-      status: "proposed"
-    };
-    
-    addCutProposal(proposal);
-  }
+  try {
+    const proposals: CutProposal[] = await api.cutsSuggest(candidateId);
+    setCutProposals(proposals);
 
-  addLog("info", "corte", "Cortes gerados", { candidateId, cutsGenerated: numCuts });
-  
-  toast({
-    title: "Cortes Gerados",
-    description: `${numCuts} propostas de corte criadas para "${candidate.title}"`
-  });
+    addLog("info", "corte", "Cortes gerados", { 
+      candidateId, 
+      cutsGenerated: proposals.length 
+    });
+    
+    toast({
+      title: "Cortes Gerados",
+      description: `${proposals.length} propostas de corte criadas para "${candidate.title}"`
+    });
+  } catch (error) {
+    addLog("error", "corte", "Erro ao gerar cortes", { error });
+    throw error;
+  }
 };
 
 export const adjustCut = (cutId: string, start: number, end: number) => {
@@ -212,7 +128,7 @@ export const approveCut = (cutId: string) => {
   });
 };
 
-export const renderClip = (
+export const renderClip = async (
   cutId: string, 
   template: RenderedClip['template'], 
   titleInVideo: string, 
@@ -240,27 +156,24 @@ export const renderClip = (
     return false;
   }
 
-  const clipId = `rc_${Date.now()}`;
-  const clip: RenderedClip = {
-    id: clipId,
-    cutId,
-    template,
-    titleInVideo,
-    subtitled,
-    mp4Url: `https://files.local/${clipId}.mp4`,
-    caption: "Conteúdo incrível! O que vocês acham? 🔥",
-    hashtags: ["#viral", "#entretenimento", "#tiktokbr", "#brasil", "#conteudo"],
-    variant: "A"
-  };
+  try {
+    const clip: RenderedClip = await api.renderClip(cutId, template, titleInVideo, subtitled);
 
-  addRenderedClip(clip);
-  addLog("info", "render", "Render concluído (mock)", { cutId, renderedClipId: clipId });
+    addRenderedClip(clip);
+    addLog("info", "render", "Render concluído", { 
+      cutId, 
+      renderedClipId: clip.id 
+    });
 
-  toast({
-    title: "Render Concluído",
-    description: "MP4 pronto para postagem!"
-  });
-  return true;
+    toast({
+      title: "Render Concluído",
+      description: "MP4 pronto para postagem!"
+    });
+    return true;
+  } catch (error) {
+    addLog("error", "render", "Erro ao renderizar", { error });
+    return false;
+  }
 };
 
 export const generateABVariant = (renderedClipId: string) => {
@@ -288,44 +201,64 @@ export const generateABVariant = (renderedClipId: string) => {
   });
 };
 
-export const schedulePost = (renderedClipId: string, when: string) => {
+export const schedulePost = async (renderedClipId: string, when: string) => {
   const store = useAppStore.getState();
-  const { addPostJob, addLog } = store;
+  const { renderedClips, addPostJob, addLog } = store;
 
-  const job: PostJob = {
-    id: `post_${Date.now()}`,
-    renderedClipId,
-    when,
-    status: "scheduled"
-  };
+  const clip: RenderedClip | undefined = renderedClips.find((c: RenderedClip) => c.id === renderedClipId);
+  if (!clip) return;
 
-  addPostJob(job);
-  addLog("info", "post", "Post agendado (mock)", { renderedClipId, when });
+  try {
+    const result: PostJob = await api.publish(renderedClipId, when, clip.caption, clip.hashtags);
 
-  toast({
-    title: "Post Agendado",
-    description: `Publicação programada para ${new Date(when).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`
-  });
+    const job: PostJob = {
+      id: result.id,
+      renderedClipId,
+      when,
+      status: "scheduled"
+    };
+
+    addPostJob(job);
+    addLog("info", "post", "Post agendado", { renderedClipId, when });
+
+    toast({
+      title: "Post Agendado",
+      description: `Publicação programada para ${new Date(when).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`
+    });
+  } catch (error) {
+    addLog("error", "post", "Erro ao agendar", { error });
+    throw error;
+  }
 };
 
-export const publishNow = (renderedClipId: string) => {
+export const publishNow = async (renderedClipId: string) => {
   const store = useAppStore.getState();
-  const { addPostJob, addLog } = store;
+  const { renderedClips, addPostJob, addLog } = store;
 
-  const job: PostJob = {
-    id: `post_${Date.now()}`,
-    renderedClipId,
-    when: new Date().toISOString().replace('Z', '-03:00'),
-    status: "done"
-  };
+  const clip: RenderedClip | undefined = renderedClips.find((c: RenderedClip) => c.id === renderedClipId);
+  if (!clip) return;
 
-  addPostJob(job);
-  addLog("info", "post", "Post publicado (mock)", { renderedClipId });
+  try {
+    const result: PostJob = await api.publish(renderedClipId, new Date().toISOString().replace('Z', '-03:00'), clip.caption, clip.hashtags);
 
-  toast({
-    title: "Post Publicado",
-    description: "Vídeo publicado no TikTok com sucesso! (mock)"
-  });
+    const job: PostJob = {
+      id: result.id,
+      renderedClipId,
+      when: new Date().toISOString().replace('Z', '-03:00'),
+      status: "done"
+    };
+
+    addPostJob(job);
+    addLog("info", "post", "Post publicado", { renderedClipId });
+
+    toast({
+      title: "Post Publicado",
+      description: "Vídeo publicado no TikTok com sucesso!"
+    });
+  } catch (error) {
+    addLog("error", "post", "Erro ao publicar", { error });
+    throw error;
+  }
 };
 
 export const saveConfig = (configPatch: Partial<Config>) => {
